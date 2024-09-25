@@ -8,7 +8,6 @@ namespace PolyBook.Models
         public int Id { get; set; }
         public int BookId { get; set; }
         public int Quyantity { get; set; }
-
         public Book? Book { get; set; }
     }
 }
