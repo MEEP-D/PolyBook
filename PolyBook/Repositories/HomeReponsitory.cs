@@ -4,12 +4,16 @@ using Microsoft.EntityFrameworkCore;
 using PolyBook.Repositories;
 namespace PolyBook.HomeReponsitory
 {
-    public class HomeReponsitory
+    public class HomeReponsitory : IHomeRepository
     {
         private readonly ApplicationDbContext _dbContext;        
         public HomeReponsitory(ApplicationDbContext dbContext)
         {
             _dbContext = dbContext;
+        }
+        public async Task<IEnumerable<Genre>> Genres()
+        {
+            return await _dbContext.Genres.ToListAsync();
         }
         public async Task<IEnumerable<Book>> LayThongTinSachTuDb(string keySearch = "", int theLooaiId = 0)
         {
