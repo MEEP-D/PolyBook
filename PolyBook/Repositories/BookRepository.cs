@@ -1,4 +1,5 @@
-﻿using PolyBook.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using PolyBook.Data;
 using PolyBook.Models;
 
 namespace PolyBook.Repositories
@@ -27,8 +28,8 @@ namespace PolyBook.Repositories
             _dbContext.Books.Update(book);
             await _dbContext.SaveChangesAsync();
         }
-        public async Task<Book?> GetBookById(int id) =>
-        public async Task<IEnumerable<Book>> GetBooks() => await
+        public async Task<Book?> GetBookById(int id) => await _dbContext.Books.FindAsync(id);
+        public async Task<IEnumerable<Book>> GetBooks() => await _dbContext.Books.Include(g => g.Genre).ToListAsync();
         {
             //_dbContext.Books.Ge
         }
