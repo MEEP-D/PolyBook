@@ -2,7 +2,7 @@
 
 namespace PolyBook.Repositories
 {
-    public class ICartRepository
+    public interface ICartRepository
     {
         Task<int> AddItem(int bookId);
 /*        Task DeleteBook(Book book);

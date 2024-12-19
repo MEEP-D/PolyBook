@@ -1,6 +1,8 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PolyBook.Data;
+using PolyBook.HomeReponsitory;
+using PolyBook.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +17,12 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultUI()
     .AddDefaultTokenProviders();
-builder.Services.AddControllersWithViews();
+//add Service taạm thời (transient)
+builder.Services.AddTransient<IHomeRepository, HomeReponsitory>();
+builder.Services.AddTransient<IBookRepository, BookRepository>();
+builder.Services.AddTransient<ICartRepository, CartRepository>();
 
+builder.Services.AddControllersWithViews();
 var app = builder.Build();
 /*using (var scope = app.Services.CreateScope())
 {

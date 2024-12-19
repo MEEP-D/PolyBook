@@ -15,25 +15,25 @@ namespace PolyBook.Controllers
             _logger = logger;
             _homeRepository = homeRepository;
         }
-
-        public async Task<IActionResult> Index(string keySearch = "", int theLooaiId = 0)
+        public async Task<IActionResult> Index(string keySearch="",int theLoaiId=0)
         {
-            IEnumerable<Book> books = await _homeRepository.LayThongTinSachTuDb(keySearch, theLooaiId);
-            IEnumerable<Genre> genges = await _homeRepository.LayThongTinSachTuDb(keySearch, theLooaiId);
-
-            BookDislayModel bookDislaymodel = new BookDislayModel
+            IEnumerable<Book> books = await _homeRepository.LayThongTinSachTuDb(keySearch, theLoaiId);
+            IEnumerable<Genre> genges = await _homeRepository.Genres();
+            BookDislayModel bookDislayModel = new BookDislayModel
             {
                 Books = books,
                 Genres = genges,
                 keySearch = keySearch,
-            };
-            return View(books);
-        }
+                theLoaiId = theLoaiId
 
-       /* public IActionResult Privacy()
+            };
+            return View();
+
+        }
+        public IActionResult Privacy()
         {
             return View();
-        }*/
+        }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()

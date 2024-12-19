@@ -1,57 +1,68 @@
-﻿using PolyBook.Models;
-using PolyBook.Data;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.Blazor;
+using PolyBook.Data;
+using PolyBook.Models;
 using PolyBook.Models.DTOs;
-using Microsoft.AspNetCore.Identity;
+using System.Net;
 namespace PolyBook.Repositories
 {
     public class CartRepository : ICartRepository
     {
         private readonly ApplicationDbContext _dbContext;
-
-        private readonly UserManager<IdentityUser> _userManagers;
-
+        private readonly UserManager<IdentityUser> _userManager;
         private readonly IHttpContextAccessor _contextAccessor;
+        private UserManager<IdentityUser>? userManager;
 
-        public CartRepository(ApplicationDbContext dbContext)
+        //public CartRepository(ApplicationDbContext dbContext, 
+        //  IHttpContextAccessor iHttpContextAccessor, 
+        //  UserManager<IdentityUser userManager>)
+        //{
+        //  _dbContext = dbContext;
+        //  _userManager = userManager;
+        //  _contextAccessor = iHttpContextAccessor;
+        //}
+
+        public Task<int> AddItem(int bookId, int soluong)
         {
-            _dbContext = dbContext;
+            throw new UnauthorizedAccessException("Người dùng chưa đăng nhập");
         }
 
-        public async Task<int> AddItem(int bookId,int soluong)
+        public Task<int> AddItem(int bookId)
         {
-            throw new UnauthorizedAccessException("Hãy đăng nhập tài khoản");
+            throw new NotImplementedException();
         }
 
         public async Task<bool> DoCheckout(CheckoutModel model)
         {
             using var transaction = _dbContext.Database.BeginTransaction();
+
             try
             {
                 var userId = GetUserId();
                 if (string.IsNullOrEmpty(userId))
                 {
-                    throw new UnauthorizedAccessException("Hãy đăng nhập tài khoản");
+                    throw new UnauthorizedAccessException("Người dùng chưa đăng nhập");
                 }
 
                 var cart = await GetCart(userId);
                 if (cart is null)
                 {
-                    throw new InvalidOperationException("Lỗi, giỏ hàng trống");
+                    throw new InvalidOperationException("lỗi, giỏ hàng trống");
                 }
 
                 var chitietgiohang = _dbContext.CartDetails
-                    .Where(i => i.ShoppingCartId == cart.Id).ToList();
+                  .Where(i => i.ShoppingCartId == cart.Id).ToList();
                 if (chitietgiohang.Count == 0)
                 {
-                    throw new InvalidOperationException("Giỏ hàng trống");
+                    throw new InvalidOperationException("giỏ hàng trống");
                 }
 
                 var trangthaidonhang = _dbContext.OrderStatuses
-                    .FirstOrDefault(s => s.StatusName == "Pending");
+                  .FirstOrDefault(s => s.StatusName == "Pending");
                 if (trangthaidonhang is null)
                 {
-                    throw new InvalidOperationException("Đơn hàng đang chờ xử lý");
+                    throw new InvalidOperationException("đơn hàng đang chờ xử lý");
                 }
 
                 var order = new Order
@@ -64,75 +75,163 @@ namespace PolyBook.Repositories
                     PaymentMethod = model.PaymentMethod,
                     Address = model.Address,
                     IsPaid = false,
-                    //OrderStatus = trangthaidonhang.Id,
+                    //OrderStatus = trangthaidonhang.Id
                 };
 
                 _dbContext.Orders.Add(order);
                 _dbContext.SaveChanges();
 
-                foreach(var item in chitietgiohang)
+                foreach (var item in chitietgiohang)
                 {
-                    var chitietdonhang = new OrderDetail
+                    var chitietDonHang = new OrderDetail
                     {
                         BookId = item.BookId,
-                        OrderId = item.Id,
+                        OrderId = order.Id,
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                     };
                     //_dbContext.OrderDetails.Add();
                 }
 
+
             }
             catch
             {
+
             }
 
             throw new NotImplementedException();
         }
-        /*public async Task<int> AddItem(int bookId,int soluong) 
+
+        public Task<IEnumerable<Book>> GetBooks()
         {
-            await _dbContext.SaveChangesAsync();
-        }*/
+            throw new NotImplementedException();
+        }
+
+        //public async Task<int> AddItem(int bookId, int soluong)
+        //{
+        //  _dbContext.SaveChangesAsync();
+        //}
 
         public async Task<ShoppingCart> GetCart(string userId)
         {
             var cart = await _dbContext.ShoppingCarts.FirstOrDefaultAsync(u => u.UserId == userId);
-
             return cart;
         }
 
-        public async Task<int> GetCartItemCount(string userId)
+        public async Task<int> GetCartItemCount(string userId = "")
         {
-            throw new NotSupportedException();
+            // cập nhật
+            if (string.IsNullOrEmpty(userId))
+            {
+                userId = GetUserId();
+            }
+            var data = await (
+              from cart in _dbContext.ShoppingCarts
+              join cartDetail in _dbContext.CartDetails
+              on cart.Id equals cartDetail.ShoppingCartId
+              where cart.UserId == userId // cập nhật
+              select new { cartDetail.Id }
+              ).ToListAsync();
+            return data.Count();
         }
 
         public async Task<ShoppingCart> GetUserCart(int id)
         {
-            throw new NotSupportedException();
+            var userId = GetUserId();
+            if (userId == null)
+            {
+                throw new InvalidOperationException("khong the tim thay id");
+            }
+            //var shoppingCart = await _dbContext.ShoppingCarts
+            //  .Include(cart => cart.CartDetails)
+            //  .ThenInclude(book => book.Book)
+
+            var shoppingCart = await _dbContext.ShoppingCarts
+              .Include(cart => cart.CartDetails)
+              .ThenInclude(book => book.Book)
+              .ThenInclude(stock => stock.Stock)
+              .Include(cartdetail => cartdetail.CartDetails)
+              .ThenInclude(book => book.Book)
+              .ThenInclude(book => book.Genre)
+              .Where(userid => userid.UserId == userId).FirstOrDefaultAsync();
+
+            // stock liên quan tới việc lưu trữ hàng hóa trong kho
+            return shoppingCart;
         }
 
         public async Task<int> RemoveItem(int bookId)
         {
-            throw new NotSupportedException();
+            string userId = GetUserId();
+            // xử lý ngoại lệ
+            try
+            {
+                if (string.IsNullOrEmpty(userId))
+                {
+                    throw new UnauthorizedAccessException("bạn chưa đăng nhập");
+                }
+
+                var cart = await GetCart(userId);
+                if (cart is null)
+                {
+                    throw new UnauthorizedAccessException("giỏ hàng trống");
+                }
+
+                // shopping phải đồng bộ trong nguyên một đoạn code:
+                // shopping => shopping.ShoppingCartId == cart.Id && shopping.BookId == bookId
+                var cartItem = _dbContext.CartDetails
+                  .FirstOrDefault(shopping => shopping.ShoppingCartId == cart.Id && shopping.BookId == bookId);
+
+                if (cartItem is null)
+                {
+                    throw new InvalidOperationException("không có item nào trong giỏ hàng");
+                }
+                else if (cartItem.Quantity == 1)
+                {
+                    _dbContext.CartDetails.Remove(cartItem);
+                }
+                else
+                {
+                    // cartItem.Quantity số lượng item không giảm xuống dưới 0, gây lỗi
+                    cartItem.Quantity = cartItem.Quantity - 1;
+                }
+                _dbContext.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                // đối với các lỗi không mong muốn, ném nó vào đây
+                throw new UnauthorizedAccessException("lỗi, vui lòng chạy lại");
+            }
+
+            var cartItemCount = await GetCartItemCount(userId);
+
+            return cartItemCount;
+        }
+
+        public Task UpdateBook(Book book)
+        {
+            throw new NotImplementedException();
         }
 
         private string GetUserId()
         {
-            //nhận diện người dùng
-            /*var nhandiennguoidung = _contextAccessor.HttpContext.User;
-            string userId = _userManagers.GetUserId(nhandiennguoidung);
-            return userId;*/
+            // Nhận diện người dùng
+            var nhandiennguoidung = _contextAccessor.HttpContext.User;
+            string userId = _userManager.GetUserId(nhandiennguoidung);
+            return userId;
 
-            //nhận diện người đùng
-            var httpContext = _contextAccessor.HttpContext;
+            // Nhận diện người dùng
 
-            //kiểm tra 
-            if(httpContext?.User != null)
-            {
-               return _userManagers.GetUserId(httpContext.User);             
-            }
-            return null;
+            //var httpContext = _contextAccessor.HttpContext;
 
+            //// kiểm tra
+            //if (httpContext?.User != null)
+            //{
+            //  return _userManager.GetUserId(httpContext.User);
+            //}
+
+            //return null;
         }
+
     }
 }
